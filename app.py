@@ -2,7 +2,7 @@ from flask import Flask, request, abort
 import json, threading
 from datetime import datetime
 import os, ipaddress
-import trello, parseur
+import trello, trello_ids, parseur
 
 app = Flask(__name__)
 
@@ -98,8 +98,10 @@ Betrag: {}""".format(rechungsnummer, rechnungsdatum, summe)
     # update the Trello card
     trello.put(f"cards/{cardId}", data={"desc": description})
 
-    # add a red label
-    trello.post(f"cards/{cardId}/labels", data={"color": "red", "name": "Processed"})
+    # move it to "Processed" list
+    processed_list_id = trello_ids.outbox
+    trello.put(f"cards/{cardId}", data={"idList": processed_list_id})
+
 
 @app.route("/webhook/parseur", methods=["POST", "GET"])
 def webhook():
