@@ -7,3 +7,4 @@ server-architecture.md
 venv/
 webhook_logs/
 *.jsonl
+documents/

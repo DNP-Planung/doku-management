@@ -52,12 +52,9 @@ def trello_webhook():
     return {"status": "ok"}, 200
 
 
-@app.route("/webhook/<service_name>", methods=["POST", "GET"])
-def webhook(service_name):
-    """
-    Handles webhook requests for any service dynamically.
-    Logs each request into a separate file per service.
-    """
+@app.route("/webhook/parseur", methods=["POST", "GET"])
+def webhook():
+    service_name = "parseur"
     log_file = os.path.join(LOG_DIR, f"{service_name}.jsonl")
 
     entry = {
