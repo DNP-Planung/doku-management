@@ -1,34 +1,35 @@
 from flask import Flask, request
 import json
 from datetime import datetime
+import os
 
 app = Flask(__name__)
 
-LOG_FILE = "webhook_log.jsonl"   # JSON-lines format (one JSON object per line)
+LOG_DIR = "webhook_logs"
+os.makedirs(LOG_DIR, exist_ok=True)  # make sure logs directory exists
 
-@app.route("/webhook", methods=["POST", "GET"])
-def webhook():
-    # Prepare log entry
+@app.route("/webhook/<service_name>", methods=["POST", "GET"])
+def webhook(service_name):
+    """
+    Handles webhook requests for any service dynamically.
+    Logs each request into a separate file per service.
+    """
+    log_file = os.path.join(LOG_DIR, f"{service_name}.jsonl")
+
     entry = {
         "timestamp": datetime.utcnow().isoformat() + "Z",
+        "service": service_name,
         "method": request.method,
         "headers": dict(request.headers),
         "args": request.args.to_dict(),
         "body": request.get_data(as_text=True),
-        "json": None
+        "json": request.get_json(silent=True)
     }
 
-    # Try to parse JSON if available
-    try:
-        entry["json"] = request.get_json(silent=True)
-    except:
-        pass
-
-    # Append to log file
-    with open(LOG_FILE, "a") as f:
+    with open(log_file, "a") as f:
         f.write(json.dumps(entry) + "\n")
 
-    return {"status": "ok"}, 200
+    return {"status": "ok", "service": service_name}, 200
 
 
 if __name__ == "__main__":

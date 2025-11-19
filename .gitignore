@@ -1,3 +1,7 @@
 trello_api_auth.py
 trello_ids.py
 __pycache__/
+server-architecture.md
+venv/
+webhook_logs/
+*.jsonl
