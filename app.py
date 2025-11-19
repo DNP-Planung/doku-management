@@ -104,7 +104,11 @@ Betrag: {}""".format(rechungsnummer, rechnungsdatum, summe)
 
 
 @app.route("/webhook/parseur", methods=["POST", "GET"])
-def webhook():
+def webhook_parseur():
+    auth_header = request.headers.get('X-Authorization')
+    if not parseur.verify_auth_header(auth_header):
+        return {"status": "wrong auth header"}, 403
+
     payload = request.get_json(silent=True)
     if not payload or 'card_id' not in payload:
         return {"status": "no card_id"}, 400

@@ -1,8 +1,8 @@
 import requests, json
-import parseur_api_key, parseur_ids
+import parseur_auth, parseur_ids
 
 def upload(path, cardId):
-    apiKey = parseur_api_key.key
+    apiKey = parseur_auth.apiKey
     mailbox = parseur_ids.mailbox
     url = f'https://api.parseur.com/parser/{mailbox}/upload?cardId={cardId}'
 
@@ -11,3 +11,6 @@ def upload(path, cardId):
 
     response = requests.post(url, headers=headers, files=files)
     return json.loads(response.text)
+
+def verify_auth_header(header):
+    return header == parseur_auth.webhookAuthKey
