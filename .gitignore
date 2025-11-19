@@ -8,3 +8,5 @@ venv/
 webhook_logs/
 *.jsonl
 documents/
+parseur_api_key.py
+parseur_ids.py
