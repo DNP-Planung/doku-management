@@ -53,7 +53,7 @@ def handle_trello_card(cardId):
     }
     save_processed_docs()
 
-    result = parseur.upload(destination)
+    result = parseur.upload(destination, cardId)
     if 'attachments' in result:
         parseurId = result['attachments']['DocumentID']
         processed_docs[cardId]['parseurId'] = parseurId
