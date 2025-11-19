@@ -86,26 +86,30 @@ def trello_webhook():
     # Immediately return OK to the caller
     return {"status": "ok"}, 200
 
+def handle_parseur_result(payload):
+    cardId = payload['card_id']
+    summe = payload.get('summe', '')
+    rechnungsdatum = payload.get('rechnungsdatum', '')
+    rechungsnummer = payload.get('rechnungsnummer', '')
+    description = """Rechnungsnummer: {}
+Rechnungsdatum: {}
+Betrag: {}""".format(rechungsnummer, rechnungsdatum, summe)
+
+    # update the Trello card
+    trello.put(f"cards/{cardId}", data={"desc": description})
+
+    # add a red label
+    trello.post(f"cards/{cardId}/labels", data={"color": "red", "name": "Processed"})
 
 @app.route("/webhook/parseur", methods=["POST", "GET"])
 def webhook():
-    service_name = "parseur"
-    log_file = os.path.join(LOG_DIR, f"{service_name}.jsonl")
+    payload = request.get_json(silent=True)
+    if not payload or 'card_id' not in payload:
+        return {"status": "no card_id"}, 400
 
-    entry = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-        "service": service_name,
-        "method": request.method,
-        "headers": dict(request.headers),
-        "args": request.args.to_dict(),
-        "body": request.get_data(as_text=True),
-        "json": request.get_json(silent=True)
-    }
-
-    with open(log_file, "a") as f:
-        f.write(json.dumps(entry) + "\n")
-
-    return {"status": "ok", "service": service_name}, 200
+    # handle card in new thread
+    threading.Thread(target=handle_parseur_result, args=(payload,)).start()
+    return {"status": "ok"}, 200
 
 
 if __name__ == "__main__":
