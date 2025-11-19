@@ -1,8 +1,8 @@
-from flask import Flask, request
+from flask import Flask, request, abort
 import json, threading
 from datetime import datetime
-import os
-import trello
+import os, ipaddress
+import trello, parseur
 
 app = Flask(__name__)
 
@@ -12,7 +12,21 @@ os.makedirs(LOG_DIR, exist_ok=True)  # make sure logs directory exists
 DOCS_DIR = "documents"
 os.makedirs(DOCS_DIR, exist_ok=True)  # make sure attachments directory exists
 
+PROCESSED_DOCS_PATH = "processed_documents.json"
+# create processed docs file if it doesn't exist
+if not os.path.exists(PROCESSED_DOCS_PATH):
+    with open(PROCESSED_DOCS_PATH, "w") as f:
+        json.dump({}, f)
+processed_docs = json.load(open(PROCESSED_DOCS_PATH, "r"))
+
+def save_processed_docs():
+    with open(PROCESSED_DOCS_PATH, "w") as f:
+        json.dump(processed_docs, f)
+
 def handle_trello_card(cardId):
+    if cardId in processed_docs:
+        return  # already processed
+
     # get the first attachment
     attachments = trello.get(f"cards/{cardId}/attachments")
     if not attachments or len(attachments) == 0:
@@ -32,9 +46,30 @@ def handle_trello_card(cardId):
     with open(destination, "wb") as f:
         f.write(contents)
 
+    # mark as processed
+    processed_docs[cardId] = {
+        "attachmentId": attachmentId,
+        "fileName": fileName,
+    }
+    save_processed_docs()
+
+    result = parseur.upload(destination)
+    if 'attachments' in result:
+        parseurId = result['attachments']['DocumentID']
+        processed_docs[cardId]['parseurId'] = parseurId
+        save_processed_docs()
+
+# Trello webhooks always come from this subnet
+AUTHORIZED_SUBNET = ipaddress.ip_network("104.192.142.240/28")
 
 @app.route("/webhook/trello", methods=["POST", "GET"])
 def trello_webhook():
+    sender_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    sender_ip = sender_ip.split(",")[0].strip()
+
+    if ipaddress.ip_address(sender_ip) not in AUTHORIZED_SUBNET:
+        abort(403)
+
     # get the card
     payload = request.get_json(silent=True)
     if not payload or 'action' not in payload:
