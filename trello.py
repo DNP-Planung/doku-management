@@ -1,6 +1,13 @@
 import requests, json
 import trello_api_auth
 
+def download(url):
+    apiKey = trello_api_auth.apiKey
+    apiToken = trello_api_auth.apiToken
+    auth_header = f'OAuth oauth_consumer_key=\"{apiKey}\", oauth_token=\"{apiToken}\"'
+    response = requests.get(url, headers={"Authorization": auth_header})
+    return response.content
+
 def make_url(request):
     apiKey = trello_api_auth.apiKey
     apiToken = trello_api_auth.apiToken
