@@ -3,7 +3,7 @@ import trello, trello_ids, trello_api_auth
 
 idModel = trello_ids.processing
 description = "Doku Management Webhook"
-callbackURL = "http://18.195.94.147/webhook/trello"
+callbackURL = "https://qgis-repository.deutsche-netzplanung.de/webhook/trello"
 
 result = trello.post(f'tokens/{trello_api_auth.apiToken}/webhooks', data={
     "key": trello_api_auth.apiKey,
