@@ -6,9 +6,6 @@ import trello, trello_ids, parseur
 
 app = Flask(__name__)
 
-LOG_DIR = "webhook_logs"
-os.makedirs(LOG_DIR, exist_ok=True)  # make sure logs directory exists
-
 DOCS_DIR = "documents"
 os.makedirs(DOCS_DIR, exist_ok=True)  # make sure attachments directory exists
 
@@ -23,7 +20,23 @@ def save_processed_docs():
     with open(PROCESSED_DOCS_PATH, "w") as f:
         json.dump(processed_docs, f)
 
-def handle_trello_card(cardId):
+def update_custom_fields(cardId, nr, total):
+    data = []
+
+    def add_custom_field(field_id, data_type, value):
+        data.append({
+            'idCustomField': field_id,
+            'value': {data_type: str(value)}
+        })
+
+    add_custom_field(trello_ids.customFieldId_nr, 'text', nr)
+    add_custom_field(trello_ids.customFieldId_total, 'text', total)
+
+    data = { 'customFieldItems': data }
+    return trello.put(f'cards/{cardId}/customFields', data=data)
+
+def handle_trello_card(card):
+    cardId = card['id']
     if cardId in processed_docs:
         return  # already processed
 
@@ -78,25 +91,32 @@ def trello_webhook():
     action_data = payload['action']['data']
     if not 'card' in action_data:
         return {"status": "no card"}, 400
-    cardId = action_data['card']['id']
+    card = action_data['card']
 
     # handle card in new thread
-    threading.Thread(target=handle_trello_card, args=(cardId,)).start()
+    threading.Thread(target=handle_trello_card, args=(card,)).start()
 
     # Immediately return OK to the caller
     return {"status": "ok"}, 200
 
 def handle_parseur_result(payload):
     cardId = payload['card_id']
-    summe = payload.get('summe', '')
-    rechnungsdatum = payload.get('rechnungsdatum', '')
-    rechungsnummer = payload.get('rechnungsnummer', '')
-    description = """Rechnungsnummer: {}
-Rechnungsdatum: {}
-Betrag: {}""".format(rechungsnummer, rechnungsdatum, summe)
+
+    # get the card
+    card = trello.get(f"cards/{cardId}")
+    if not card:
+        return
+
+    vendor_name = payload.get('VendorName', '')
+    name = card.get('name', '')
+    name = f'{name} - {vendor_name}'
+
+    total = payload.get('TotalAmount', '')
+    due_date = payload.get('InvoiceIssueDate', '')
 
     # update the Trello card
-    trello.put(f"cards/{cardId}", data={"desc": description})
+    trello.put(f"cards/{cardId}", data={"name": name, "due": due_date})
+    update_custom_fields(cardId, nr=vendor_name, total=total)
 
     # move it to "Processed" list
     processed_list_id = trello_ids.outbox
